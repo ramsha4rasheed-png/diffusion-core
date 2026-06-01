@@ -1,35 +1,45 @@
 # First-Principles Diffusion Models (AI 623 — PA1)
 
-A clean, end-to-end PyTorch implementation of Denoising Diffusion Probabilistic Models (DDPM) built directly from mathematical foundations. This repository serves as a self-contained implementation and analytical playground designed to bridge the gap between textbook diffusion equations and raw PyTorch execution.
+A clean, end-to-end PyTorch implementation of Denoising Diffusion Probabilistic Models (DDPM) built directly from mathematical foundations. This repository contains a comprehensive Jupyter notebook that handles the entire pipeline—from mathematical schedules and training to ancestral sampling and advanced feature-space evaluation.
+
+This setup serves as a self-contained implementation and analytical playground designed to bridge the gap between textbook diffusion equations and raw PyTorch execution.
 
 ---
 
-## Technical Architecture & Mechanics
+## Technical Pipeline & Architecture
 
-### 1. Diffusion Core Logic (`diffusion/`)
+The notebook is structured sequentially to implement and verify every moving part of the DDPM framework:
 
-* **`schedule.py`**: Computes and caches discrete variance schedule scalar chains ($\beta_i, \alpha_i, \overline{\alpha}_i$) across $L=1000$ timesteps.
+### 1. Mathematical Foundation & Forward Process
 
-
-* **`forward.py`**: Implements closed-form $q$-sampling to directly map clean data $x_0 \to x_i$ via $x_i = \sqrt{\overline{\alpha}_i}x_0 + \sqrt{1-\overline{\alpha}_i}\epsilon$.
-
-
-* **`posterior.py`**: Evaluates true analytical Gaussian posterior parameters ($\tilde{\mu}_i, \tilde{\beta}_i$) to serve as the exact target for the reverse chain.
+* **Variance Scheduling**: Computes and caches discrete variance schedule scalar chains ($\beta_i, \alpha_i, \overline{\alpha}_i$) across $L=1000$ timesteps using a baseline linear setup.
 
 
-* **`ddpm.py`**: Implements the complete ancestral reverse sampler loop from $x_L \sim \mathcal{N}(0,I)$ down to $x_0$, enforcing zero noise injection at $i=1$.
+* **Closed-Form Forward Noising**: Implements $q$-sampling to directly map clean data $x_0 \to x_i$ via $x_i = \sqrt{\overline{\alpha}_i}x_0 + \sqrt{1-\overline{\alpha}_i}\epsilon$.
+
+
+* **Analytical True Posterior**: Evaluates closed-form true Gaussian posterior parameters ($\tilde{\mu}_i, \tilde{\beta}_i$) to serve as the exact target for the reverse chain.
 
 
 
-### 2. Neural Network Backbone (`models/`)
+### 2. Timestep-Conditioned U-Net
 
-* **`unet.py`**: A timestep-conditioned U-Net optimized on the unweighted noise-prediction loss ($\mathcal{L}_{simple}$).
-
-
-* Configured with 3 resolution levels (channel multipliers: 32, 64, 128) using GroupNorm and SiLU activations.
+* **Architecture**: A localized U-Net backbone optimized on the unweighted noise-prediction loss ($\mathcal{L}_{simple}$).
 
 
-* Sinusoidal positional embeddings are mapped via an MLP and injected directly as activation bias terms inside each residual block.
+* Implemented with 3 resolution levels (channel multipliers: 32, 64, 128) using GroupNorm and SiLU activations.
+
+
+* **Time Injection**: Computes sinusoidal positional embeddings, passing them through an MLP to inject directly as activation bias terms inside each residual block.
+
+
+
+### 3. Training & Ancestral Sampling
+
+* Tracks optimization across a baseline training budget (at least 100k gradient steps / 50 epochs) with data mapped to the $[-1, 1]$ range.
+
+
+* Implements the complete ancestral reverse sampler loop from $x_L \sim \mathcal{N}(0,I)$ down to $x_0$, enforcing zero noise injection at the final $i=1$ step.
 
 
 
@@ -37,25 +47,42 @@ A clean, end-to-end PyTorch implementation of Denoising Diffusion Probabilistic 
 
 ## Evaluation & Diagnostics Suite
 
-To track convergence and protect against common diffusion pitfalls, the codebase implements the following rigorous verification pipelines:
+To track true generative quality and protect against common diffusion pitfalls, the notebook includes a dedicated evaluation section:
 
-* **Analytical Checks:** Monotonicity tracking of the Signal-to-Noise Ratio ($SNR(i) = \frac{\overline{\alpha}_i}{1-\overline{\alpha}_i}$) and empirical mean/variance validation of the forward chain.
-
-
-* **Custom Dataset-FID/KID:** Rather than relying on mismatched ImageNet-Inception features, sample quality is quantitatively evaluated in a feature space learned by a classifier trained directly on the target dataset.
+* **Analytical Checks**: Validates schedule scalars by plotting $\overline{\alpha}_i$ and the Signal-to-Noise Ratio ($SNR(i) = \frac{\overline{\alpha}_i}{1-\overline{\alpha}_i}$) to check convergence properties.
 
 
-* **Memorization Audits:** Implements nearest-neighbor spatial checking ($l_2$ matching on raw pixel space and learned feature embeddings) against the training set to explicitly test for data memorization.
+* **Custom Dataset-FID/KID**: Computes FID and KID scores using a feature space from a simple CNN classifier trained directly on the target dataset, avoiding mismatched ImageNet feature extractors.
 
 
-* **Trajectory Tracking:** Visualizes step-wise denoising progression by saving intermediate latents at scheduled intervals ($i \in \{L, \frac{3L}{4}, \frac{L}{2}, \frac{L}{4}, 1\}$).
+* **Memorization Audits**: Runs spatial nearest-neighbor checking ($l_2$ matching on raw pixels and learned feature embeddings) against the training set to verify the model is generating novel samples rather than memorizing data.
+
+
+* **Trajectory Tracking**: Visualizes step-wise denoising progression by saving intermediate latents at scheduled intervals ($i \in \{L, \frac{3L}{4}, \frac{L}{2}, \frac{L}{4}, 1\}$).
+
 
 
 ---
 
-## Setup & Dependencies
+## Notebook Structure
 
-Ensure you have PyTorch and the following helper utilities installed:
+```text
+├── DDPM_First_Principles.ipynb   # Single monolithic pipeline containing:
+│   ├── 1. Setup & Preprocessing  # Data scaling [-1, 1] and dataloading
+│   ├── 2. Diffusion Mechanics    # Schedules, q-sampling, and posterior formulas
+│   ├── 3. Model Architecture     # Timestep-conditioned U-Net implementation
+│   ├── 4. Training Loop          # Simple loss optimization & diagnostic tracking
+│   ├── 5. Reverse Sampling       # Ancestral generation & trajectory saving
+│   └── 6. Advanced Evaluation    # Feature FID/KID and nearest-neighbor checks
+└── README.md
+
+```
+
+---
+
+## Dependencies
+
+The notebook runs purely on top of standard scientific and deep learning libraries:
 
 * `torch` / `torchvision` 
 
@@ -69,4 +96,5 @@ Ensure you have PyTorch and the following helper utilities installed:
 * `matplotlib` 
 
 
-* `scipy` / `scikit-learn`
+* 
+`scipy` / `scikit-learn`
