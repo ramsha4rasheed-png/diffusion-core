@@ -96,5 +96,4 @@ The notebook runs purely on top of standard scientific and deep learning librari
 * `matplotlib` 
 
 
-* 
-`scipy` / `scikit-learn`
+* `scipy` / `scikit-learn`
