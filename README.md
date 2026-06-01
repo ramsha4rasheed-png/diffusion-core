@@ -1,1 +1,85 @@
-First-Principles Diffusion Models (AI 623 - PA1)A clean, end-to-end PyTorch implementation of Denoising Diffusion Probabilistic Models (DDPM) built purely from mathematical foundations. This repository is designed as a rigorous preparation workspace for analytical vivas and deep-dive technical evaluations into generative latent dynamics.  Technical Scope1. Analytical FormulationsForward Marginal Derivations: Proofs for the closed-form Gaussian marginal tracking step-by-step variance accumulation.  SNR Monotonicity: Tracking the Signal-to-Noise Ratio ($SNR(i) = \frac{\overline{\alpha}_i}{1 - \overline{\alpha}_i}$) and analyzing step-wise learnability thresholds across the time horizon.  ELBO & Objective Geometry: Complete expansion of the Variational Lower Bound (ELBO) into tracking conditionals, matching the true posterior $q(x_{i-1}|x_i, x_0)$.  Score Equivalence: Proving Tweedie’s Identity to map optimal denoisers directly to the data score function ($\nabla_x \log p(x)$).  2. Implementation Mechanics (diffusion/)schedule.py: Computes custom linear/variance grids ($\beta_i, \alpha_i, \overline{\alpha}_i$).  forward.py: Implements $q$-sampling utilities to map arbitrary clean data $x_0 \to x_i$.  posterior.py: Closed-form evaluation of analytical true posterior mean/variance parameters ($\tilde{\mu}_i, \tilde{\beta}_i$).  ddpm.py: Ancestral loop sampler execution tracking step-down variances down to $x_0$.  3. Architecture & Training (models/ & train.py)Timestep conditional U-Net configured with sinusoidal positional embeddings injected as activation biases per residual block level.  Optimized using the unweighted simple noise prediction loss ($\mathcal{L}_{simple}$).  4. Metrics & DiagnosticsEvaluation Matrix: Quantitative tracking via custom intermediate CNN-feature FID/KID scores tailored specifically for standard benchmarks (MNIST/FashionMNIST).  Memorization Audits: Latent space nearest-neighbor checks ($l_2$ matching in feature vs. pixel space) to detect exact training-set memorization.  Baseline Verification SuiteDenoising trajectory step-saves at $i \in \{L, \frac{3L}{4}, \frac{L}{2}, \frac{L}{4}, 1\}$.  64-sample target grid synthesis tracking structural variance convergence over 100k gradient steps.  
+# First-Principles Diffusion Models (AI 623 — PA1)
+
+A clean, end-to-end PyTorch implementation of Denoising Diffusion Probabilistic Models (DDPM) built directly from mathematical foundations. This repository serves as a self-contained implementation and analytical playground designed to bridge the gap between textbook diffusion equations and raw PyTorch execution.
+
+---
+
+## Technical Architecture & Mechanics
+
+### 1. Diffusion Core Logic (`diffusion/`)
+
+* 
+**`schedule.py`**: Computes and caches discrete variance schedule scalar chains ($\beta_i, \alpha_i, \overline{\alpha}_i$) across $L=1000$ timesteps.
+
+
+* 
+**`forward.py`**: Implements closed-form $q$-sampling to directly map clean data $x_0 \to x_i$ via $x_i = \sqrt{\overline{\alpha}_i}x_0 + \sqrt{1-\overline{\alpha}_i}\epsilon$.
+
+
+* 
+**`posterior.py`**: Evaluates true analytical Gaussian posterior parameters ($\tilde{\mu}_i, \tilde{\beta}_i$) to serve as the exact target for the reverse chain.
+
+
+* 
+**`ddpm.py`**: Implements the complete ancestral reverse sampler loop from $x_L \sim \mathcal{N}(0,I)$ down to $x_0$, enforcing zero noise injection at $i=1$.
+
+
+
+### 2. Neural Network Backbone (`models/`)
+
+* 
+**`unet.py`**: A timestep-conditioned U-Net optimized on the unweighted noise-prediction loss ($\mathcal{L}_{simple}$).
+
+
+* Configured with 3 resolution levels (channel multipliers: 32, 64, 128) using GroupNorm and SiLU activations.
+
+
+* Sinusoidal positional embeddings are mapped via an MLP and injected directly as activation bias terms inside each residual block.
+
+
+
+---
+
+## Evaluation & Diagnostics Suite
+
+To track convergence and protect against common diffusion pitfalls, the codebase implements the following rigorous verification pipelines:
+
+* 
+**Analytical Checks:** Monotonicity tracking of the Signal-to-Noise Ratio ($SNR(i) = \frac{\overline{\alpha}_i}{1-\overline{\alpha}_i}$) and empirical mean/variance validation of the forward chain.
+
+
+* 
+**Custom Dataset-FID/KID:** Rather than relying on mismatched ImageNet-Inception features, sample quality is quantitatively evaluated in a feature space learned by a classifier trained directly on the target dataset.
+
+
+* 
+**Memorization Audits:** Implements nearest-neighbor spatial checking ($l_2$ matching on raw pixel space and learned feature embeddings) against the training set to explicitly test for data memorization.
+
+
+* 
+**Trajectory Tracking:** Visualizes step-wise denoising progression by saving intermediate latents at scheduled intervals ($i \in \{L, \frac{3L}{4}, \frac{L}{2}, \frac{L}{4}, 1\}$).
+
+
+---
+
+## Setup & Dependencies
+
+Ensure you have PyTorch and the following helper utilities installed:
+
+* 
+`torch` / `torchvision` 
+
+
+* 
+`einops` 
+
+
+* 
+`tqdm` 
+
+
+* 
+`matplotlib` 
+
+
+* `scipy` / `scikit-learn`
